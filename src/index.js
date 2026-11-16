@@ -15,12 +15,16 @@ export default {
     if (request.method === 'GET' && url.pathname === '/incidents') {
       let incidents = await feed(env);
       const since = url.searchParams.get('since');
+      const status = url.searchParams.get('status');
       if (since) {
         const sinceTime = new Date(since);
         if (isNaN(sinceTime.getTime())) {
           return json({ error: 'invalid since parameter' }, 400);
         }
         incidents = incidents.filter(i => new Date(i.openedAt) > sinceTime);
+      }
+      if (status) {
+        incidents = incidents.filter(i => i.status === status);
       }
       return json({ incidents });
     }
