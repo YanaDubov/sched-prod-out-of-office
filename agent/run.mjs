@@ -73,6 +73,9 @@ async function model(messages, tools = TOOLS, options = {}) {
 
 async function preflight() {
   required(['account', 'cloudflareToken', 'apiOrigin', 'modelOrigin', 'modelToken']);
+  const triage = await readFile(join(root, '.agents/skills/triage/SKILL.md'), 'utf8');
+  if (!triage.includes('## Unattended delivery mode')) throw new Error('The hosted runner did not load the grown triage skill.');
+  evidence.add({ kind: 'preflight-skill', sha256: sha256(triage), unattended: true });
   const tests = await runSandbox(root, { keys: BASE_KEYS, allowShapeChange: false, image: config.testImage });
   evidence.add({ kind: 'preflight-tests', ...tests });
   if (!tests.ok) throw new Error('Hosted isolated baseline tests failed: ' + tests.output.slice(-3000));
