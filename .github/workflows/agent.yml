@@ -1,0 +1,50 @@
+name: Bounded out-of-office agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preflight or the one explicitly authorized course round
+        required: true
+        type: choice
+        default: preflight
+        options:
+          - preflight
+          - round
+
+permissions:
+  contents: write
+
+concurrency:
+  group: s03e03-one-runner
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check the fixed control-plane tests
+        run: node --test agent/policy.test.mjs agent/runtime.test.mjs
+      - name: Prepare isolated credential-free Node tests
+        run: |
+          docker pull node:22-alpine
+          image=$(docker image inspect node:22-alpine --format '{{index .RepoDigests 0}}')
+          printf 'TEST_IMAGE=%s\n' "$image" >> "$GITHUB_ENV"
+      - name: Run the bounded hosted agent
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          API_ORIGIN: ${{ secrets.API_ORIGIN }}
+          MODEL_ORIGIN: ${{ secrets.MODEL_ORIGIN }}
+          MODEL_HELPER_TOKEN: ${{ secrets.MODEL_HELPER_TOKEN }}
+          EVIDENCE_KEY: ${{ secrets.EVIDENCE_KEY }}
+          COURSE_TRACKER_URL: ${{ secrets.COURSE_TRACKER_URL }}
+          COURSE_TRACKER_TOKEN: ${{ secrets.COURSE_TRACKER_TOKEN }}
+          PRODUCTION_FEED_URL: ${{ secrets.PRODUCTION_FEED_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_MODE: ${{ inputs.mode }}
+        run: node agent/run.mjs "$RUN_MODE"
