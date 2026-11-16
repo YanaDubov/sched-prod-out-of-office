@@ -13,7 +13,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/incidents') {
-      return json({ incidents: await feed(env) });
+      let incidents = await feed(env);
+      const since = url.searchParams.get('since');
+      if (since) {
+        const sinceTime = new Date(since);
+        if (isNaN(sinceTime.getTime())) {
+          return json({ error: 'invalid since parameter' }, 400);
+        }
+        incidents = incidents.filter(i => new Date(i.openedAt) > sinceTime);
+      }
+      return json({ incidents });
     }
     if (request.method === 'GET' && url.pathname.startsWith('/incidents/')) {
       const id = url.pathname.slice('/incidents/'.length);
